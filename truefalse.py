@@ -183,3 +183,38 @@ def wff2(n):
       if r==5:
          x = random.choice(range(0,n))
          return Leftrightarrow([wff2(x), wff2(n-x-1)])
+        
+
+def collapseLeaves(x):
+   if isinstance(x,Value):
+      return x
+   if isinstance(x, Nott):
+      if isinstance(x.arguments[0],Value):
+	     return Value(x.getvalue())
+      else:
+	     return Nott([collapseLeaves(x.arguments[0])])
+   if isinstance(x, Wedge):
+      if isinstance(x.arguments[0],Value) and isinstance(x.arguments[1],Value):
+         return Value(x.getvalue())
+      else:
+         return Wedge([collapseLeaves(x.arguments[0]),collapseLeaves(x.arguments[1])])
+   if isinstance(x, Vee):
+	   if isinstance(x.arguments[0],Value) and isinstance(x.arguments[1],Value):
+	      return Value(x.getvalue())
+	   else:
+	      return Vee([collapseLeaves(x.arguments[0]),collapseLeaves(x.arguments[1])])
+   if isinstance(x, Implies):
+	   if isinstance(x.arguments[0],Value) and isinstance(x.arguments[1],Value):
+	      return Value(x.getvalue())
+	   else:
+	      return Implies([collapseLeaves(x.arguments[0]),collapseLeaves(x.arguments[1])])
+   if isinstance(x, Leftrightarrow):
+      if isinstance(x.arguments[0],Value) and isinstance(x.arguments[1],Value):
+	     return Value(x.getvalue())
+      else:
+	     return Leftrightarrow([collapseLeaves(x.arguments[0]),collapseLeaves(x.arguments[1])])
+		
+def printSolutions(x):
+   print x.display()
+   if isinstance(x, Value) == False:
+      printSolutions(collapseLeaves(x))
