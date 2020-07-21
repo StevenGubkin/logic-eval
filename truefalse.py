@@ -10,25 +10,49 @@ class Node:
    def __init__(self):
       self.arguments = []
 
-   def _explain(self, s, explain=False, withdepth=False, depth=0):
-      if explain:
-         display = ''
-         if withdepth:
-            display = display + '\n' + ' ' * depth
-         display = display + s
-         if withdepth:
-            display = display + ' # value: ' + str(self.getvalue()) + '\n'
-         else:
-            display = display + ' [value: ' + str(self.getvalue()) + ']'
-         return display
+   def _getdepth(self):
+      depth = 1
+      for a in self.arguments:
+         argdepth = a._getdepth()
+         if argdepth + 1 > depth:
+            depth = argdepth + 1
+
+      return depth
+
+   def _explain(self, s, explain=False, doindent=False,
+                stopdepth=0, _indentlevel=0):
+      if self._getdepth() == stopdepth:
+         return str(self.getvalue())
       else:
-         return s
+         if explain:
+            display = ''
+            if doindent:
+               display = display + '\n' + ' ' * _indentlevel
+            display = display + s
+            if doindent:
+               display = display + ' # value: ' + str(self.getvalue()) + '\n'
+            else:
+               display = display + ' [value: ' + str(self.getvalue()) + ']'
+            return display
+         else:
+            return s
+
+   def stepbystep(self, _depth=None):
+      if _depth is None:
+         _depth = self._getdepth()
+      currentdepth = 1
+      while currentdepth <= _depth:
+         print(self.display(stopdepth = currentdepth))
+         currentdepth = currentdepth + 1
 
 class Value(Node):
    def __init__(self, value):
+      self.arguments = []
       self._value = value
 
-   def display(self, explain=False, withdepth=False, depth=0):
+   def display(self, explain=False, doindent=False,
+               stopdepth=0, _indentlevel=0):
+      return str(self._value)
       if self._value:
          return 'T'
       else:
@@ -42,13 +66,17 @@ class Wedge(Node):
       # Check number of arguments?
       self.arguments = arguments
 
-   def display(self, explain=False, withdepth=False, depth=0):
+   def display(self, explain=False, doindent=False,
+               stopdepth=0, _indentlevel=0):
       return self._explain(
          '(' +
-         self.arguments[0].display(explain, withdepth, depth + 1) +
+         self.arguments[0].display(explain, doindent,
+                                   stopdepth, _indentlevel + 1) +
          ' \\wedge ' +
-         self.arguments[1].display(explain, withdepth, depth + 1) +
-         ')', explain, withdepth, depth)
+         self.arguments[1].display(explain, doindent,
+                                   stopdepth, _indentlevel + 1) +
+         ')', explain=explain, doindent=doindent,
+              stopdepth=stopdepth, _indentlevel=_indentlevel)
 
    def getvalue(self):
       return self.arguments[0].getvalue() and self.arguments[1].getvalue()
@@ -62,13 +90,17 @@ class Vee(Node):
       # Check number of arguments?
       self.arguments = arguments
 
-   def display(self, explain=False, withdepth=False, depth=0):
+   def display(self, explain=False, doindent=False,
+               stopdepth=0, _indentlevel=0):
       return self._explain(
          '(' +
-         self.arguments[0].display(explain, withdepth, depth + 1) +
+         self.arguments[0].display(explain, doindent,
+                                   stopdepth, _indentlevel + 1) +
          ' \\vee ' +
-         self.arguments[1].display(explain, withdepth, depth + 1) +
-         ')', explain, withdepth, depth)
+         self.arguments[1].display(explain, doindent,
+                                   stopdepth, _indentlevel + 1) +
+         ')', explain=explain, doindent=doindent,
+              stopdepth=stopdepth, _indentlevel=_indentlevel)
 
    def getvalue(self):
       return self.arguments[0].getvalue() or self.arguments[1].getvalue()
@@ -83,11 +115,14 @@ class Nott(Node):
       # Check number of arguments?
       self.arguments = arguments
 
-   def display(self, explain=False, withdepth=False, depth=0):
+   def display(self, explain=False, doindent=False,
+               stopdepth=0, _indentlevel=0):
       return self._explain(
          '\\neg(' +
-         self.arguments[0].display(explain, withdepth, depth + 1) +
-         ')', explain, withdepth, depth)
+         self.arguments[0].display(explain, doindent,
+                                   stopdepth, _indentlevel + 1) +
+         ')', explain=explain, doindent=doindent,
+              stopdepth=stopdepth, _indentlevel=_indentlevel)
 
    def getvalue(self):
       return not self.arguments[0].getvalue()
@@ -102,13 +137,17 @@ class Implies(Node):
       # Check number of arguments?
       self.arguments = arguments
 
-   def display(self, explain=False, withdepth=False, depth=0):
+   def display(self, explain=False, doindent=False,
+               stopdepth=0, _indentlevel=0):
       return self._explain(
          '(' +
-         self.arguments[0].display(explain, withdepth, depth + 1) +
+         self.arguments[0].display(explain, doindent,
+                                   stopdepth, _indentlevel + 1) +
          ' \\implies ' +
-         self.arguments[1].display(explain, withdepth, depth + 1) +
-         ')', explain, withdepth, depth)
+         self.arguments[1].display(explain, doindent,
+                                   stopdepth, _indentlevel + 1) +
+         ')', explain=explain, doindent=doindent,
+              stopdepth=stopdepth, _indentlevel=_indentlevel)
 
    def getvalue(self):
       return ((not self.arguments[0].getvalue())
@@ -126,13 +165,17 @@ class Leftrightarrow(Node):
       # Check number of arguments?
       self.arguments = arguments
 
-   def display(self, explain=False, withdepth=False, depth=0):
+   def display(self, explain=False, doindent=False,
+               stopdepth=0, _indentlevel=0):
       return self._explain(
          '(' +
-         self.arguments[0].display(explain, withdepth, depth + 1) +
+         self.arguments[0].display(explain, doindent,
+                                   stopdepth, _indentlevel + 1) +
          ' \\leftrightarrow ' +
-         self.arguments[1].display(explain, withdepth, depth + 1) +
-         ')', explain, withdepth, depth)
+         self.arguments[1].display(explain, doindent,
+                                   stopdepth, _indentlevel + 1) +
+         ')', explain=explain, doindent=doindent,
+              stopdepth=stopdepth, _indentlevel=_indentlevel)
 
    def getvalue(self):
       left = self.arguments[0].getvalue()
