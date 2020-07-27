@@ -24,29 +24,7 @@ class Node:
 
         return depth
 
-    def _explain(self, s, binding=None, explain=False, doindent=False,
-                 stopdepth=0, _indentlevel=0):
-        if self._getdepth() <= stopdepth:
-            return str(self.getvalue(binding))
-        else:
-            if explain:
-                display = ''
-                if doindent:
-                    display = display + '\n' + ' ' * _indentlevel
-                display = display + s
-                if doindent:
-                    display = (display + ' % value: ' +
-                               str(self.getvalue(binding)) + '\n')
-                else:
-                    display = (display + ' [value: ' +
-                               str(self.getvalue(binding)) + ']')
-                return display
-            else:
-                return s
 
-
-    #def display(self, binding=None, explain=False, doindent=False,
-    #            stopdepth=0, _indentlevel=0):
     def display(self, binding=None, stopdepth=0):
         """Return an iterator that covers the ways to display this node.
 
@@ -77,9 +55,6 @@ class Node:
             for children_tuple in children_tuple_iterables:
                 yield self._display_from_children(children_tuple, binding)
 
-    def _apply_all_results(self, arguments_lists, single_argument=tuple()):
-        pass
-
     def stepbystep(self, _depth=None):
         if _depth is None:
             _depth = self._getdepth()
@@ -105,10 +80,6 @@ class Value(Node):
         self.arguments = []
         self._value = value
 
-    def ___display(self, binding=None, explain=False, doindent=False,
-                stopdepth=0, _indentlevel=0):
-        return [str(self._value)]
-
     def _display_from_children(self, children_displays, binding=None):
         return str(self._value)
 
@@ -123,22 +94,6 @@ class Wedge(Node):
     def _display_from_children(self, children_displays, binding=None):
         return ('(' + children_displays[0] + ' \\wedge '
                 + children_displays[1] + ')')
-
-    def old_display(self, binding=None, explain=False, doindent=False,
-                stopdepth=0, _indentlevel=0):
-        #itertools.product(
-        left_results = self.arguments[0].display(
-            binding, explain, doindent, stopdepth, _indentlevel + 1)
-        right_results = self.arguments[1].display(
-            binding, explain, doindent, stopdepth, _indentlevel + 1)
-        results = []
-        for left_result in left_results:
-            for right_result in right_results:
-                results.append(self._explain(
-                    '(' + left_result
-                    + ' \\wedge ' + right_result + ')',
-                    binding, explain, doindent, stopdepth, _indentlevel))
-        return results
 
     def getvalue(self, binding=None):
         return (self.arguments[0].getvalue(binding) and
@@ -157,21 +112,9 @@ class Vee(Node):
         return ('(' + children_displays[0] + ' \\vee '
                 + children_displays[1] +')')
 
-    def ___display(self, binding=None, explain=False, doindent=False,
-                    stopdepth=0, _indentlevel=0):
-        return self._explain(
-            '(' +
-            self.arguments[0].display(binding, explain, doindent,
-                                              stopdepth, _indentlevel + 1) +
-            ' \\vee ' +
-            self.arguments[1].display(binding, explain, doindent,
-                                              stopdepth, _indentlevel + 1) +
-            ')', binding=binding, explain=explain, doindent=doindent,
-                  stopdepth=stopdepth, _indentlevel=_indentlevel)
-
     def getvalue(self, binding=None):
         return (self.arguments[0].getvalue(binding) or
-                  self.arguments[1].getvalue(binding))
+                self.arguments[1].getvalue(binding))
 
 # this is "or", and 2 in the random_wff function
 
@@ -184,16 +127,7 @@ class Nott(Node):
         self.arguments = arguments
 
     def _display_from_children(self, children_displays, binding=None):
-        return '\\neg(' + children_displays[0] +')'
-
-    def ___display(self, binding=None, explain=False, doindent=False,
-                    stopdepth=0, _indentlevel=0):
-        return self._explain(
-            '\\neg(' +
-            self.arguments[0].display(binding, explain, doindent,
-                                              stopdepth, _indentlevel + 1) +
-            ')', binding=binding, explain=explain, doindent=doindent,
-                  stopdepth=stopdepth, _indentlevel=_indentlevel)
+        return '\\neg(' + children_displays[0] + ')'
 
     def getvalue(self, binding=None):
         return not self.arguments[0].getvalue(binding)
@@ -212,21 +146,9 @@ class Implies(Node):
         return ('(' + children_displays[0] + ' \\implies '
                 + children_displays[1] +')')
 
-    def ___display(self, binding=None, explain=False, doindent=False,
-                    stopdepth=0, _indentlevel=0):
-        return self._explain(
-            '(' +
-            self.arguments[0].display(binding, explain, doindent,
-                                              stopdepth, _indentlevel + 1) +
-            ' \\implies ' +
-            self.arguments[1].display(binding, explain, doindent,
-                                              stopdepth, _indentlevel + 1) +
-            ')', binding=binding, explain=explain, doindent=doindent,
-                  stopdepth=stopdepth, _indentlevel=_indentlevel)
-
     def getvalue(self, binding=None):
         return ((not self.arguments[0].getvalue(binding))
-                  or self.arguments[1].getvalue(binding))
+                or self.arguments[1].getvalue(binding))
 
 # this is "implies", and 4 in the random_wff function
 	
@@ -243,18 +165,6 @@ class Leftrightarrow(Node):
     def _display_from_children(self, children_displays, binding=None):
         return ('(' + children_displays[0] + ' \\leftrightarrow '
                 + children_displays[1] +')')
-
-    def ___display(self, binding=None, explain=False, doindent=False,
-                    stopdepth=0, _indentlevel=0):
-        return self._explain(
-            '(' +
-            self.arguments[0].display(binding, explain, doindent,
-                                              stopdepth, _indentlevel + 1) +
-            ' \\leftrightarrow ' +
-            self.arguments[1].display(binding, explain, doindent,
-                                              stopdepth, _indentlevel + 1) +
-            ')', binding=binding, explain=explain, doindent=doindent,
-                  stopdepth=stopdepth, _indentlevel=_indentlevel)
 
     def getvalue(self, binding=None):
         left = self.arguments[0].getvalue(binding)
@@ -293,15 +203,6 @@ class UniversalQuantifier(Quantifier):
                 + str(binding[self.variable]) + ']'
                 + ': (' + children_displays[0] + ')')
 
-    def ___display(self, binding=None, explain=False, doindent=False,
-                    stopdepth=0, _indentlevel=0):
-        return self._explain(
-            'For all ' + self.variable + ': (' +
-            self.arguments[0].display(binding, explain, doindent,
-                                              stopdepth, _indentlevel + 1) +
-            ')', binding=binding, explain=explain, doindent=doindent,
-                  stopdepth=stopdepth, _indentlevel=_indentlevel)
-
     def getvalue(self, binding=None):
         if binding is None:
             binding = {}
@@ -318,15 +219,6 @@ class ExistentialQuantifier(Quantifier):
         return ('There exists ' + self.variable + ' [here = '
                 + str(binding[self.variable]) + ']'
                 + ': (' + children_displays[0] + ')')
-
-    def ___display(self, binding=None, explain=False, doindent=False,
-                    stopdepth=0, _indentlevel=0):
-        return self._explain(
-            'There exists ' + self.variable + ': (' +
-            self.arguments[0].display(binding, explain, doindent,
-                                              stopdepth, _indentlevel + 1) +
-            ')', binding=binding, explain=explain, doindent=doindent,
-                  stopdepth=stopdepth, _indentlevel=_indentlevel)
 
     def getvalue(self, binding=None):
         if binding is None:
@@ -369,27 +261,6 @@ class Predicate(Node):
 
     def _display_from_children(self, children_displays, binding=None):
         return 'Prop.' + self.name + '(' + ', '.join(self.variables) + ')'
-
-    def _explain(self, s, binding=None, explain=False, doindent=False,
-                     stopdepth=0, _indentlevel=0):
-        if explain:
-            display = ''
-            if doindent:
-                display = display + '\n' + ' ' * _indentlevel
-            display = display + s
-            if doindent:
-                display = display + '\n' + ' ' * _indentlevel
-            return display
-        else:
-            return s
-
-    def ___display(self, binding=None, explain=False, doindent=False,
-                    stopdepth=0, _indentlevel=0):
-        return self._explain(
-            'Prop.' + self.name + '(' +
-            ', '.join(self.variables) +
-            ')', binding=binding, explain=explain, doindent=doindent,
-                  stopdepth=stopdepth, _indentlevel=_indentlevel)
 
     def getvalue(self, binding):
         keys = []
