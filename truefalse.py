@@ -5,10 +5,13 @@
 #an array of [tex,truth value].  For instance, [T \implies F, 0] would
 #be a valid wff.  I will build these recursively.
 import random
+import itertools
 from pprint import pprint
+
 
 class Node:
     def __init__(self):
+        self.universe = None
         self.arguments = []
 
     def _getdepth(self):
@@ -22,7 +25,7 @@ class Node:
         return depth
 
     def _explain(self, s, binding=None, explain=False, doindent=False,
-                     stopdepth=0, _indentlevel=0):
+                 stopdepth=0, _indentlevel=0):
         if self._getdepth() <= stopdepth:
             return str(self.getvalue(binding))
         else:
@@ -33,13 +36,46 @@ class Node:
                 display = display + s
                 if doindent:
                     display = (display + ' % value: ' +
-                                  str(self.getvalue(binding)) + '\n')
+                               str(self.getvalue(binding)) + '\n')
                 else:
                     display = (display + ' [value: ' +
-                                  str(self.getvalue(binding)) + ']')
+                               str(self.getvalue(binding)) + ']')
                 return display
             else:
                 return s
+
+
+    #def display(self, binding=None, explain=False, doindent=False,
+    #            stopdepth=0, _indentlevel=0):
+    def display(self, binding=None, stopdepth=0):
+        """Return an iterator that covers the ways to display this node.
+
+        This node may have more than one possible display, such as the case
+        when it (or an ancestor) is a quantified node.  In such cases
+        `binding` will be a mapping from a variable name to the specific
+        element of the universe of discourse (`self.universe`) that is being
+        queried.
+
+        If the depth of the current subtree is less than or equal to
+        `stopdepth`, then yield the computed value of the subtree instead of
+        its expanded representation.
+        """
+        if self._getdepth() <= stopdepth:
+            yield str(self.getvalue(binding))
+        else:
+            children_display_iterables = []
+            for argument in self.arguments:
+                children_display_iterables.append(
+                    argument.display(binding, stopdepth))
+
+            children_tuple_iterables = itertools.product(
+                *children_display_iterables)
+
+            if len(self.arguments) == 0:
+                children_tuple_iterables = [tuple()]
+
+            for children_tuple in children_tuple_iterables:
+                yield self._display_from_children(children_tuple, binding)
 
     def _apply_all_results(self, arguments_lists, single_argument=tuple()):
         pass
@@ -47,19 +83,34 @@ class Node:
     def stepbystep(self, _depth=None):
         if _depth is None:
             _depth = self._getdepth()
-        currentdepth = 1
+        currentdepth = 0
         while currentdepth <= _depth:
-            print(self.display(stopdepth = currentdepth) + '\n')
+            for d in self.display(stopdepth = currentdepth):
+                print(d + '\n')
             currentdepth = currentdepth + 1
+
+    def getvalue(self, binding=None):
+        """Return the computed truth value of this node, based
+        recursively on the truth values of child nodes.
+
+        In a quantified context, `binding` will be a mapping from
+        a variable name to the specific element of the universe of
+        discourse (`self.universe`) that is being queried.
+        """
+        pass
+
 
 class Value(Node):
     def __init__(self, value):
         self.arguments = []
         self._value = value
 
-    def display(self, binding=None, explain=False, doindent=False,
-                    stopdepth=0, _indentlevel=0):
+    def ___display(self, binding=None, explain=False, doindent=False,
+                stopdepth=0, _indentlevel=0):
         return [str(self._value)]
+
+    def _display_from_children(self, children_displays, binding=None):
+        return str(self._value)
 
     def getvalue(self, binding=None):
         return self._value
@@ -69,8 +120,13 @@ class Wedge(Node):
         # Check number of arguments?
         self.arguments = arguments
 
-    def display(self, binding=None, explain=False, doindent=False,
-                    stopdepth=0, _indentlevel=0):
+    def _display_from_children(self, children_displays, binding=None):
+        return ('(' + children_displays[0] + ' \\wedge '
+                + children_displays[1] + ')')
+
+    def old_display(self, binding=None, explain=False, doindent=False,
+                stopdepth=0, _indentlevel=0):
+        #itertools.product(
         left_results = self.arguments[0].display(
             binding, explain, doindent, stopdepth, _indentlevel + 1)
         right_results = self.arguments[1].display(
@@ -79,15 +135,14 @@ class Wedge(Node):
         for left_result in left_results:
             for right_result in right_results:
                 results.append(self._explain(
-                    '(' + left_result +
-                    ' \\wedge ' + right_result +
-                    ')', binding=binding, explain=explain, doindent=doindent,
-                         stopdepth=stopdepth, _indentlevel=_indentlevel))
+                    '(' + left_result
+                    + ' \\wedge ' + right_result + ')',
+                    binding, explain, doindent, stopdepth, _indentlevel))
         return results
 
     def getvalue(self, binding=None):
         return (self.arguments[0].getvalue(binding) and
-                  self.arguments[1].getvalue(binding))
+                self.arguments[1].getvalue(binding))
 
 # this is "and", and 1 in the random_wff function
 def wedge(x,y):
@@ -98,7 +153,11 @@ class Vee(Node):
         # Check number of arguments?
         self.arguments = arguments
 
-    def display(self, binding=None, explain=False, doindent=False,
+    def _display_from_children(self, children_displays, binding=None):
+        return ('(' + children_displays[0] + ' \\vee '
+                + children_displays[1] +')')
+
+    def ___display(self, binding=None, explain=False, doindent=False,
                     stopdepth=0, _indentlevel=0):
         return self._explain(
             '(' +
@@ -124,7 +183,10 @@ class Nott(Node):
         # Check number of arguments?
         self.arguments = arguments
 
-    def display(self, binding=None, explain=False, doindent=False,
+    def _display_from_children(self, children_displays, binding=None):
+        return '\\neg(' + children_displays[0] +')'
+
+    def ___display(self, binding=None, explain=False, doindent=False,
                     stopdepth=0, _indentlevel=0):
         return self._explain(
             '\\neg(' +
@@ -146,7 +208,11 @@ class Implies(Node):
         # Check number of arguments?
         self.arguments = arguments
 
-    def display(self, binding=None, explain=False, doindent=False,
+    def _display_from_children(self, children_displays, binding=None):
+        return ('(' + children_displays[0] + ' \\implies '
+                + children_displays[1] +')')
+
+    def ___display(self, binding=None, explain=False, doindent=False,
                     stopdepth=0, _indentlevel=0):
         return self._explain(
             '(' +
@@ -174,7 +240,11 @@ class Leftrightarrow(Node):
         # Check number of arguments?
         self.arguments = arguments
 
-    def display(self, binding=None, explain=False, doindent=False,
+    def _display_from_children(self, children_displays, binding=None):
+        return ('(' + children_displays[0] + ' \\leftrightarrow '
+                + children_displays[1] +')')
+
+    def ___display(self, binding=None, explain=False, doindent=False,
                     stopdepth=0, _indentlevel=0):
         return self._explain(
             '(' +
@@ -191,13 +261,39 @@ class Leftrightarrow(Node):
         right = self.arguments[1].getvalue(binding)
         return ((left and right) or ((not left) and (not right)))
 
-class UniversalQuantifier(Node):
+
+class Quantifier(Node):
     def __init__(self, arguments, variable, universe):
         self.arguments = arguments
         self.variable = variable
         self.universe = universe
 
-    def display(self, binding=None, explain=False, doindent=False,
+    def display(self, binding=None, stopdepth=0):
+        if binding is None:
+            binding = {}
+        else:
+            binding = binding.copy()
+            if self.variable in binding:
+                raise ValueError('Duplicate variable', self.variable,
+                                 binding[self.variable])
+
+        if self._getdepth() <= stopdepth:
+            # We only need to cover one result if we're summarizing.
+            yield str(self.getvalue(binding))
+        else:
+            for thing in self.universe:
+                binding[self.variable] = thing
+
+                for d in super().display(binding, stopdepth):
+                    yield d
+
+class UniversalQuantifier(Quantifier):
+    def _display_from_children(self, children_displays, binding=None):
+        return ('For all ' + self.variable + ' [here = '
+                + str(binding[self.variable]) + ']'
+                + ': (' + children_displays[0] + ')')
+
+    def ___display(self, binding=None, explain=False, doindent=False,
                     stopdepth=0, _indentlevel=0):
         return self._explain(
             'For all ' + self.variable + ': (' +
@@ -209,19 +305,21 @@ class UniversalQuantifier(Node):
     def getvalue(self, binding=None):
         if binding is None:
             binding = {}
+        else:
+            binding = binding.copy()
         for thing in self.universe:
             binding[self.variable] = thing
             if not self.arguments[0].getvalue(binding):
                 return False
         return True
 
-class ExistentialQuantifier(Node):
-    def __init__(self, arguments, variable, universe):
-        self.arguments = arguments
-        self.variable = variable
-        self.universe = universe
+class ExistentialQuantifier(Quantifier):
+    def _display_from_children(self, children_displays, binding=None):
+        return ('There exists ' + self.variable + ' [here = '
+                + str(binding[self.variable]) + ']'
+                + ': (' + children_displays[0] + ')')
 
-    def display(self, binding=None, explain=False, doindent=False,
+    def ___display(self, binding=None, explain=False, doindent=False,
                     stopdepth=0, _indentlevel=0):
         return self._explain(
             'There exists ' + self.variable + ': (' +
@@ -269,6 +367,9 @@ class Predicate(Node):
         else:
             self.map = random_map(universe, variables)
 
+    def _display_from_children(self, children_displays, binding=None):
+        return 'Prop.' + self.name + '(' + ', '.join(self.variables) + ')'
+
     def _explain(self, s, binding=None, explain=False, doindent=False,
                      stopdepth=0, _indentlevel=0):
         if explain:
@@ -282,7 +383,7 @@ class Predicate(Node):
         else:
             return s
 
-    def display(self, binding=None, explain=False, doindent=False,
+    def ___display(self, binding=None, explain=False, doindent=False,
                     stopdepth=0, _indentlevel=0):
         return self._explain(
             'Prop.' + self.name + '(' +
@@ -358,48 +459,77 @@ class TreeBuilder:
                 options = options + (10,)
         return options
 
-    def _build_wff(self, n, extra_options=tuple()):
-        vs_choice = ('x', 'y')
+    def _build_wff(self, n, extra_options=tuple(), vs_choice=['x', 'y']):
+        # This code (and, really, all the code for this class) is all quite
+        # brittle; it could certainly benefit from rethinking how we want to
+        # build random trees.
         root = None
+        print(extra_options)
         if n == 0:
-            root = random.choice([Value(True), Value(False)])
-        else: 
-            r = random.choice(self.options + extra_options)
+            options = [Value(True), Value(False)]
+            if 8 in extra_options:
+                options.append(self.predA)
+            if 9 in extra_options:
+                options.append(self.predB)
+            if 10 in extra_options:
+                options.append(self.predC)
+            root = random.choice(options)
+        else:
+            r = None
+            options = None
+            if len(vs_choice) == 0:
+                options = list(self.options)
+                options.remove(6)
+                options.remove(7)
+            else:
+                options = self.options
+
+            r = random.choice(options)
+            print(vs_choice, r, options)
+
             if r==1:
                 x = random.choice(range(0,n))
-                root = Wedge([self._build_wff(x, extra_options),
-                                  self._build_wff(n-x-1, extra_options)])
+                root = Wedge([self._build_wff(x, extra_options, vs_choice),
+                                  self._build_wff(n-x-1, extra_options,
+                                                  vs_choice)])
             if r==2:
                 x = random.choice(range(0,n))
-                root = Vee([self._build_wff(x, extra_options),
-                                self._build_wff(n-x-1, extra_options)])
+                root = Vee([self._build_wff(x, extra_options, vs_choice),
+                                self._build_wff(n-x-1, extra_options,
+                                                vs_choice)])
             if r==3:
-                root = Nott([self._build_wff(n-1, extra_options)])
+                root = Nott([self._build_wff(n-1, extra_options, vs_choice)])
             if r==4:
                 x = random.choice(range(0,n))
-                root = Implies([self._build_wff(x, extra_options),
-                                     self._build_wff(n-x-1, extra_options)])
+                root = Implies([self._build_wff(x, extra_options, vs_choice),
+                                     self._build_wff(n-x-1, extra_options,
+                                                     vs_choice)])
             if r==5:
                 x = random.choice(range(0,n))
-                root = Leftrightarrow([self._build_wff(x, extra_options),
-                                              self._build_wff(n-x-1, extra_options)])
+                root = Leftrightarrow([self._build_wff(x, extra_options,
+                                                       vs_choice),
+                                       self._build_wff(n-x-1, extra_options,
+                                                       vs_choice)])
             if r==6:
                 v = random.choice(vs_choice)
                 extra_options = self._get_extra_options(v, extra_options)
+                new_vs = vs_choice.copy()
+                new_vs.remove(v)
+                print("Universal:", vs_choice, v, new_vs)
                 root = UniversalQuantifier(
-                    [self._build_wff(n - 1, extra_options)], v, self.universe)
+                    [self._build_wff(n - 1, extra_options, new_vs)],
+                    v, self.universe)
             if r==7:
                 v = random.choice(vs_choice)
                 extra_options = self._get_extra_options(v, extra_options)
+                new_vs = vs_choice.copy()
+                new_vs.remove(v)
+                print("Existential:", vs_choice, v, new_vs)
                 root = ExistentialQuantifier(
-                    [self._build_wff(n - 1, extra_options)], v, self.universe)
-            if r==8:
-                root = self.predA
-            if r==9:
-                root = self.predB
-            if r==10:
-                root = self.predC
+                    [self._build_wff(n - 1, extra_options, new_vs)],
+                    v, self.universe)
 
+        assert(root is not None)
         return root
 
 
