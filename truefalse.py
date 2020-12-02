@@ -21,9 +21,7 @@ class Node:
             #print(a, 'depth:', argdepth)
             if argdepth + 1 > depth:
                 depth = argdepth + 1
-
         return depth
-
 
     def display(self, binding=None, stopdepth=0):
         """Return an iterator that covers the ways to display this node.
@@ -335,7 +333,6 @@ class TreeBuilder:
         # brittle; it could certainly benefit from rethinking how we want to
         # build random trees.
         root = None
-        print(extra_options)
         if n == 0:
             options = [Value(True), Value(False)]
             if 8 in extra_options:
@@ -356,25 +353,23 @@ class TreeBuilder:
                 options = self.options
 
             r = random.choice(options)
-            print(vs_choice, r, options)
 
             if r==1:
                 x = random.choice(range(0,n))
                 root = Wedge([self._build_wff(x, extra_options, vs_choice),
-                                  self._build_wff(n-x-1, extra_options,
-                                                  vs_choice)])
+                              self._build_wff(n-x-1, extra_options,
+                                              vs_choice)])
             if r==2:
                 x = random.choice(range(0,n))
                 root = Vee([self._build_wff(x, extra_options, vs_choice),
-                                self._build_wff(n-x-1, extra_options,
-                                                vs_choice)])
+                            self._build_wff(n-x-1, extra_options, vs_choice)])
             if r==3:
                 root = Nott([self._build_wff(n-1, extra_options, vs_choice)])
             if r==4:
                 x = random.choice(range(0,n))
                 root = Implies([self._build_wff(x, extra_options, vs_choice),
-                                     self._build_wff(n-x-1, extra_options,
-                                                     vs_choice)])
+                                self._build_wff(n-x-1, extra_options,
+                                                vs_choice)])
             if r==5:
                 x = random.choice(range(0,n))
                 root = Leftrightarrow([self._build_wff(x, extra_options,
@@ -386,7 +381,6 @@ class TreeBuilder:
                 extra_options = self._get_extra_options(v, extra_options)
                 new_vs = vs_choice.copy()
                 new_vs.remove(v)
-                print("Universal:", vs_choice, v, new_vs)
                 root = UniversalQuantifier(
                     [self._build_wff(n - 1, extra_options, new_vs)],
                     v, self.universe)
@@ -395,7 +389,6 @@ class TreeBuilder:
                 extra_options = self._get_extra_options(v, extra_options)
                 new_vs = vs_choice.copy()
                 new_vs.remove(v)
-                print("Existential:", vs_choice, v, new_vs)
                 root = ExistentialQuantifier(
                     [self._build_wff(n - 1, extra_options, new_vs)],
                     v, self.universe)
