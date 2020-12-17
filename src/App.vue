@@ -1,0 +1,32 @@
+<template>
+  <div id="app">
+    <!--img alt="Vue logo" src="./assets/logo.png">
+    <HelloWorld msg="Welcome to Your Vue.js App"/-->
+    <h1>Logical expression generator</h1>
+    <LogicalExpressions/>
+  </div>
+</template>
+
+<script>
+// import HelloWorld from './components/HelloWorld.vue'
+import LogicalExpressions from './components/LogicalExpressions.vue';
+
+export default {
+  name: 'App',
+  components: {
+    // HelloWorld,
+    LogicalExpressions,
+  },
+};
+</script>
+
+<style>
+#app {
+  font-family: Avenir, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-align: center;
+  color: #2c3e50;
+  margin-top: 60px;
+}
+</style>
