@@ -2,5 +2,20 @@ Truth Tables
   Introduce logical connectives in a progressive way (not, and, or, implies, double implication)
   Let students compute truth tables
   Have students invent propositions having a given truth table
-  
-  
+
+Discussion with Steve on 2020-12-18
+===================================
+
+The idea is for this to be a toy for students to play with.  Steve imagines using the toy as follows:
+
+- Select the set of operators to use
+- Select the total number of operators to use
+- Be able to guess the reduced value of the expression and reveal whether that
+  guess is correct
+- Be able to step through sequentially simplified versions of the expression
+
+And there's also predicate management:
+
+- Select the size of the universe
+- Name some random (i.e. having random values over the universe) predicates and
+  indicate if they are one- or two-variable predicates
