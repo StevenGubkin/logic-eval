@@ -22,10 +22,19 @@ function nest_function(outer, inner, outer_args) {
 
 /* The functions `integer`, `element`, `collect`, `repeat`, `harvest`, `limit`,
  * `filter`, `concat`, and `join` are all taken directly, verbatum from the
- * book "How JavaScript Works" by Douglas Crockford. `map` is slightly
+ * book "How JavaScript Works" (HJS) by Douglas Crockford. `map` is slightly
  * modified. */
+
+/* In HJS, Crockford uses function closures to provide an alternative to native
+ * JavaScript generators.  HJS factories are functions that return ("make")
+ * generator functions.  Every time you call a generator function, it
+ * emits/generates a new value based on the closure of the factory function.
+ */
+
+/* Makes a generator that generates integer values from `from` to `to` in
+ * `step` increments. */
 function integer(from = 0, to = Number.MAX_SAFE_INTEGER, step = 1) {
-  return function () {
+  return function integer_generator() {
     if (from < to) {
       const result = from;
       from += step;
@@ -34,6 +43,9 @@ function integer(from = 0, to = Number.MAX_SAFE_INTEGER, step = 1) {
   };
 }
 
+/* Makes a generator that generates the elements of the array `array`.  `gen`
+ * is a generator that generates the element numbers of `array` that the
+ * primary generator should retrieve. */
 function element(array, gen = integer(0, array.length)) {
   return function element_generator(...args) {
     const element_nr = gen(...args);
@@ -43,6 +55,8 @@ function element(array, gen = integer(0, array.length)) {
   };
 }
 
+/* Makes a generator that emulates `generator` but also adds the generated,
+ * non-`undefined` elements to array `array`. */
 function collect(generator, array) {
   return function collect_generator(...args) {
     const value = generator(...args);
@@ -53,18 +67,32 @@ function collect(generator, array) {
   };
 }
 
+/* Calls the generator function `generator` until that function returns
+ * `undefined`.
+ *
+ * With a modest amount of scaffolding, this can emulate `Array.forEach`,
+ * `Array.every`, `Array.some`, `Array.find`, `Array.findIndex`,
+ * `Array.filter`, and `Array.map` (for this last one, see `map` below).  It
+ * can also build additional tools (Crockford mentions, for example, the
+ * possibility of having a `map` function or method that can start at the
+ * back of an array and work towards the front).
+ */
 function repeat(generator) {
   if (generator() !== undefined) {
     return repeat(generator);
   }
 }
 
+/* Uses `repeat` to call a generator until it is "exhausted", returning an
+ * array of all the non-`undefined` results. */
 function harvest(generator) {
   const array = [];
   repeat(collect(generator, array));
   return array;
 }
 
+/* Modifies the generator `generator` so that it will only return
+ * non-`undefined` results at most `count` number of times. */
 function limit(generator, count = 1) {
   return function (...args) {
     if (count >= 1) {
@@ -74,6 +102,8 @@ function limit(generator, count = 1) {
   };
 }
 
+/* Modifies the generator `generator` so that it will only return results for
+ * which the function `predicate` returns truthy. */
 function filter(generator, predicate) {
   return function filter_generator(...args) {
     const value = generator(...args);
@@ -84,6 +114,9 @@ function filter(generator, predicate) {
   };
 }
 
+/* Makes a generator from the `generators` list of arguments such that the new
+ * generator moves from each generator in the list to the next one when the
+ * last one is "exhausted" (i.e. generates `undefined`). */
 function concat(...generators) {
   const next = element(generators);
   let generator = next();
@@ -99,6 +132,10 @@ function concat(...generators) {
   };
 }
 
+/* Makes a generator from the `generators` list of arguments such that when the
+ * new generator is called (i.e. requested to generate a new value), it has all
+ * of the argument generators generate a value, and then returns the value of
+ * calling `func` with that list of values as its arguments. */
 function join(func, ...generators) {
   return function join_generator() {
     return func(...generators.map(function (gen) {
@@ -107,7 +144,11 @@ function join(func, ...generators) {
   };
 }
 
-function join_single(func, generator) {
+/* Makes a generator from the `generator` argument such that when the new
+ * generator is called (i.e. requested to generate a new value), it obtains a
+ * value from `generator` and, if that value is not `undefined`, returns the
+ * result of calling `func` on that value. */
+function premap(func, generator) {
   return function join_generator() {
     const arg = generator();
     if (arg !== undefined) {
@@ -116,10 +157,12 @@ function join_single(func, generator) {
   };
 }
 
+/* Call `func` on each element of `array` and return a new array of the
+ * results. */
 function map(array, func) {
-  return harvest(join_single(func, element(array)));
+  return harvest(premap(func, element(array)));
 }
 
 module.exports = Object.freeze({
   checked, identity, integer, element, collect, repeat, harvest, limit,
-  filter, concat, join, join_single, map});
+  filter, concat, join, premap, map});

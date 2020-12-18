@@ -1,7 +1,8 @@
 const functools = require('./functools');
 const fulfill = require('./fulfill');
 
-const { identity, element, filter, concat, repeat, join, map } = functools;
+const { identity, element, filter, concat, repeat, harvest,
+        join, premap, map } = functools;
 
 
 function push_to_result(array, value) {
@@ -207,24 +208,23 @@ function update_predicate_truth(predicates_space, name,
                                 values = undefined, replace = true) {
   if (values === undefined) {
     replace = true;
-    values = harvest(filter(
-               element(Array.from(predicates_space.universe)),
-               function (el) {
+    values = Array.from(predicates_space.universe).filter(
+               function () {
                  const values = [true, false];
                  return values[Math.floor(Math.random() * values.length)];
-               }));
+               });
   } else {
-    repeat(join_single(function (value) {
-                         predicates_space.universe.add(value);
-                       }, element(values)));
+    values.forEach(function (value) {
+                     predicates_space.universe.add(value);
+                   });
   }
 
-  if (!replace && predicates_space[name] !== undefined) {
-    repeat(join_single(function (value) {
-                         predicates_space[name].predicates.add(value);
-                       }, element(values)));
+  if (!replace && predicates_space.predicates[name] !== undefined) {
+    values.forEach(function (value) {
+                     predicates_space.predicates[name].true.add(value);
+                   });
   } else {
-    predicates_space[name] = new Set(values);
+    predicates_space.predicates[name] = { true: new Set(values) };
   }
 
   return predicates_space;
@@ -299,4 +299,5 @@ module.exports = Object.freeze({
   // example,
   build_expression_tree,
   expression_tree_as_tex,
-  simplify_expression_tree });
+  simplify_expression_tree,
+  update_predicate_truth });
