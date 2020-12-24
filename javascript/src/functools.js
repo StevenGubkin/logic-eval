@@ -20,16 +20,22 @@ function nest_function(outer, inner, outer_args) {
   }
 }
 
-/* The functions `integer`, `element`, `collect`, `repeat`, `harvest`, `limit`,
- * `filter`, `concat`, and `join` are all taken directly, verbatum from the
- * book "How JavaScript Works" (HJS) by Douglas Crockford. `map` is slightly
- * modified. */
+/* The functions `constant`, `integer`, `element`, `collect`, `repeat`,
+ * `harvest`, `limit`, `filter`, `concat`, and `join` are all taken directly,
+ * verbatum from the book "How JavaScript Works" (HJS) by Douglas Crockford.
+ * `map` is slightly modified. */
 
 /* In HJS, Crockford uses function closures to provide an alternative to native
  * JavaScript generators.  HJS factories are functions that return ("make")
  * generator functions.  Every time you call a generator function, it
  * emits/generates a new value based on the closure of the factory function.
  */
+
+function constant(value) {
+  return function constant_generator() {
+    return value;
+  };
+}
 
 /* Makes a generator that generates integer values from `from` to `to` in
  * `step` increments. */
@@ -164,5 +170,5 @@ function map(array, func) {
 }
 
 module.exports = Object.freeze({
-  checked, identity, integer, element, collect, repeat, harvest, limit,
-  filter, concat, join, premap, map});
+  checked, identity, constant, integer, element, collect, repeat, harvest,
+  limit, filter, concat, join, premap, map});

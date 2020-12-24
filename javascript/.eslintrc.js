@@ -18,6 +18,8 @@ module.exports = {
     'function-paren-newline': 'off',
     'no-param-reassign': 'warn',
     'object-curly-newline': 'off',
+    'object-property-newline': 'off',
+    'operator-assignment': 'off',
     'no-multiple-empty-lines': ['off', {
       'max': 2
     }],

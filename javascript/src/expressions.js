@@ -1,8 +1,10 @@
 const functools = require('./functools');
 const fulfill = require('./fulfill');
+const util = require('./util');
 
-const { identity, element, filter, concat, repeat, harvest,
-        join, premap, map } = functools;
+const { identity, constant, element, limit, filter, concat, harvest,
+        map } = functools;
+const { random_element, random_elements, cross_join, next_var_name } = util;
 
 
 function push_to_result(array, value) {
@@ -104,39 +106,21 @@ function object_tree_traverse(root) {
     get_children_object);
 }
 
-function object_from_arrays(keys_array, values_array) {
-  const result = Object.create(null);
-
-  const keys_generator = element(keys_array);
-  const values_generator = element(values_array);
-
-  repeat(join(function (key, value) {
-    if (key !== undefined) {
-      result[key] = value;
-      return result;
-    }
-
-    return undefined;
-  },
-  keys_generator, values_generator));
-
-  return result;
-}
-
 function expression_tree_as_tex(root) {
   return tree_traverse(root, is_leaf_object,
     function (node, ...child_results) {
-      if (node.value === true) {
-        return 'T';
-      }
-      if (node.value === false) {
-        return 'F';
+      /* if (is_leaf_object(node)) {
+        return node.contents.type.tex;
       }
 
-      const fulfill_args = object_from_arrays(node.value.child_names,
+      const fulfill_args = object_from_arrays(node.contents.type.child_names,
         child_results);
 
-      return fulfill(node.value.tex, fulfill_args, identity);
+      return fulfill(node.contents.type.tex, fulfill_args, identity); */
+      if (node.contents.type.format !== undefined) {
+        return node.contents.type.format(child_results, node.contents);
+      }
+      return fulfill(node.contents.type.tex, child_results, identity);
     },
     get_children_object);
 }
@@ -145,40 +129,72 @@ const basic_node_types = {
   and: {
     child_names: ['l', 'r'],
     eval: function (l, r) { return l && r; },
-    tex: '({l} \\wedge {r})',
+    tex: '({0} \\wedge {1})',
   },
   or: {
     child_names: ['l', 'r'],
     eval: function (l, r) { return l || r; },
-    tex: '({l} \\vee {r})',
+    tex: '({0} \\vee {1})',
   },
   not: {
     child_names: ['e'],
     eval: function (e) { return !e; },
-    tex: '(\\neg {e})',
+    tex: '(\\neg {0})',
   },
   implication: {
     child_names: ['l', 'r'],
     eval: function (l, r) { return (!l) || r; },
-    tex: '({l} \\implies {r})',
+    tex: '({0} \\implies {1})',
   },
   equivalence: {
     child_names: ['l', 'r'],
     eval: function (l, r) { return (l && r) || ((!l) && (!r)); },
-    tex: '({l} \\leftrightarrow {r})',
+    tex: '({0} \\leftrightarrow {1})',
   },
 };
+
+const boolean_node_types = {
+  true_t: {
+    eval: function () { return true; },
+    tex: 'T',
+  },
+  false_t: {
+    eval: function () { return false; },
+    tex: 'F',
+  },
+};
+
+function init_quantifier_contents(all_variables, stack_variables) {
+  const contents = Object.create(null);
+  if (all_variables.length === 0) {
+    contents.variable = 'a';
+  } else {
+    contents.variable = next_var_name(all_variables[all_variables.length - 1]);
+  }
+  all_variables.push(contents.variable);
+  stack_variables.push(contents.variable);
+  return contents;
+}
+
+function quantifier_format(child_results, node_contents) {
+  return fulfill(this.tex,
+    [node_contents.variable].concat(child_results), identity);
+}
 
 const quantifier_node_types = {
   universal_quantifier: {
     child_names: ['e'],
     other: ['variable'],
-    tex: '(For all {variable}: {e})',
+    tex: '(\\forall {0}: {1})',
+    format: quantifier_format,
+    init_node_contents: init_quantifier_contents,
   },
   existential_quantifier: {
     child_names: ['e'],
     other: ['variable'],
-    tex: '(There exists {variable}: {e})',
+    tex: '(\\exists {0}: {1})',
+    format: quantifier_format,
+    init_node_contents: init_quantifier_contents,
   },
 };
 
@@ -188,79 +204,159 @@ const quantifier_node_types = {
  *   universe: Set([0, 1, 2]),  // The overall universe of discourse
  *   predicates: {
  *     A: {
- *       "true": Set([0, 2]),   // Predicate A is true exactly for 0 and 2
+ *       true_for: Set([0, 2]),   // Predicate A is true exactly for 0 and 2
  *     },
  *     B: {
- *       "true": Set([0, 1])    // Predicate B is true exactly for 0 and 1
+ *       true_for: Set([0, 1])    // Predicate B is true exactly for 0 and 1
  *     },
  *   }
  * }
  */
 
 /* Updates a `predicates_space` object for the predicate `name` to indicate
- * that that predicate is true for `values`.  If `values` is undefined,
- * randomly select true values from `predicates.universe`.  If `replace` is
- * false, update the predicate's set of true values, rather than replacing it.
+ * that that predicate is true for `values`.  `values` should be an array of
+ * arrays; the second-dimensional arrays must all have the same length, and the
+ * values of each of these arrays correspond to the positional values for which
+ * the predicate `name` is true.  If `values` is undefined, randomly select
+ * true values from `predicates.universe`.  If `replace` is false, update the
+ * predicate's set of true values, rather than replacing it.
  *
  * Updates the `predicates` object in place, and also returns it.
  */
 function update_predicate_truth(predicates_space, name,
                                 values = undefined, replace = true) {
+  let predicate_dimension = 1;
   if (values === undefined) {
     replace = true;
-    values = Array.from(predicates_space.universe).filter(
+    const universe_array = Array.from(predicates_space.universe);
+    if (predicates_space.predicates[name] !== undefined) {
+      predicate_dimension = predicates_space.predicates[name].args_nr;
+    }
+    const universe_args = cross_join(harvest(limit(constant(
+                            universe_array), predicate_dimension)));
+    values = universe_args.filter(
                function () {
-                 const values = [true, false];
-                 return values[Math.floor(Math.random() * values.length)];
+                 const options = [true, false];
+                 return options[Math.floor(Math.random() * options.length)];
                });
-  } else {
+  } else if (values.length > 0) {
+    predicate_dimension = values[0].length;
     values.forEach(function (value) {
                      predicates_space.universe.add(value);
                    });
   }
 
-  if (!replace && predicates_space.predicates[name] !== undefined) {
-    values.forEach(function (value) {
-                     predicates_space.predicates[name].true.add(value);
-                   });
-  } else {
-    predicates_space.predicates[name] = { true: new Set(values) };
+  if (replace || predicates_space.predicates[name] === undefined) {
+    predicates_space.predicates[name] = {
+      true_for: new Set(),
+      args_nr: predicate_dimension,
+      init_node_contents(all_variables, stack_variables) {
+        const contents = Object.create(null);
+        contents.variables = random_elements(stack_variables, this.args_nr);
+        return contents;
+      },
+      eval(binding) {
+        this.binding = binding;
+      },
+      format(child_results, contents) {
+        let params = contents.variables.slice();
+        if (contents.value !== undefined) {
+          params = params.map(function (param, index) {
+              return fulfill('{0}={1}',
+                             [param, contents.value[index]], identity);
+            });
+        }
+        return fulfill('{0}({1})', [name, params.join(', ')],
+                       identity);
+      },
+    };
   }
+  const predicate = predicates_space.predicates[name];
+  values.forEach(function (value) {
+                   if (predicate.args_nr !== value.length) {
+                     throw RangeError(
+                       'All values must have the same length.');
+                   }
+                   predicates_space.predicates[name].true_for.add(value);
+                 });
 
   return predicates_space;
 }
 
-// function build_expression_tree(size, universe) {
-function build_expression_tree(size, predicates = undefined) {
-  // const predicates = undefined;
-  if (size === 0) {
-    const truth_values = [true, false];
-    const selected_value = truth_values[
-      Math.floor(Math.random() * truth_values.length)];
-    return { value: selected_value };
+function build_expression_sample(tree_size, operators = undefined,
+                                 predicates_space = undefined) {
+  // function build_expression_tree(size, universe) {
+  const quantified_variables = [];
+  function build_expression_tree(size, variables_stack = []) {
+    // const predicates = undefined;
+    let types = [];
+    let selected_type;
+    const node = Object.create(null);
+    node.contents = Object.create(null);
+    function current_build(s) {
+      return build_expression_tree(s, variables_stack.slice());
+    }
+
+    if (size === 0) {
+      types = types.concat(Object.values(boolean_node_types));
+      if (predicates_space !== undefined && variables_stack.length > 0) {
+        types = types.concat(
+          Object.values(predicates_space.predicates).filter(function (p) {
+            return p.args_nr <= variables_stack.length;
+          }));
+      }
+      selected_type = random_element(types);
+      if (selected_type.init_node_contents !== undefined) {
+        node.contents = selected_type.init_node_contents(
+          quantified_variables, variables_stack);
+      }
+      node.contents.type = selected_type;
+    } else {
+      /* const type_sets = [basic_node_types];
+      if (predicates_space !== undefined && Object.keys(
+          predicates_space.predicates).length > 0) {
+        type_sets.push(quantifier_node_types);
+
+        if (quantified_variables !== undefined) {
+          type_sets.push(predicates_space.predicates);
+        }
+      }
+
+      const type_set = random_element(type_sets); */
+
+      const basic_type_names = operators !== undefined && operators.length > 0
+                               ? operators
+                               : Object.keys(basic_node_types);
+      types = basic_type_names.map(function (name) {
+        return basic_node_types[name];
+      });
+
+      // const basic_nr = type_names.length;
+      // We only allow quantifiers if we are using some predicates.
+      if (predicates_space !== undefined && Object.keys(
+          predicates_space.predicates).length > 0) {
+        // type_names = type_names.concat(Object.keys(quantifier_node_types));
+        types = types.concat(Object.values(quantifier_node_types));
+      }
+      selected_type = random_element(types);
+      if (selected_type.init_node_contents !== undefined) {
+        node.contents = selected_type.init_node_contents(
+          quantified_variables, variables_stack);
+      }
+      node.contents.type = selected_type;
+      const child_extents = snap(size - 1, selected_type.child_names.length,
+        Math.floor);
+      node.children = child_extents.map(current_build);
+    }
+
+    return node;
   }
 
-  let type_names = Object.keys(basic_node_types);
-  const basic_nr = type_names.length;
-  // We only allow quantifiers if we are using some predicates.
-  if (predicates !== undefined) {
-    type_names = type_names.concat(Object.keys(quantifier_node_types));
-  }
-  const selected_index = Math.floor(Math.random() * type_names.length);
-  const selected_value = type_names[selected_index];
-  const selected_type = selected_index < basic_nr
-    ? basic_node_types[selected_value]
-    : quantifier_node_types[selected_value];
-  const child_extents = snap(size - 1, selected_type.child_names.length,
-    Math.floor);
-  function current_build(s) {
-    return build_expression_tree(s, predicates);
-  }
-  const children = map(child_extents, current_build);
-
+  const tree = build_expression_tree(tree_size);
   return {
-    value: selected_type,
-    children,
+    tree,
+    bind_variables: quantified_variables,
+    binding: { },
   };
 }
 
@@ -297,7 +393,7 @@ module.exports = Object.freeze({
   tree_traverse,
   object_tree_traverse,
   // example,
-  build_expression_tree,
+  build_expression_sample,
   expression_tree_as_tex,
   simplify_expression_tree,
   update_predicate_truth });
