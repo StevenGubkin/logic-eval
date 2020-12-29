@@ -2,6 +2,44 @@ const functools = require('./functools');
 
 const { repeat, join } = functools;
 
+/* function dl_node() {
+  let value;
+  let previous;
+  let next;
+  let list;
+
+  const that = Object.create(null);
+
+  that.
+  return that;
+}
+
+function dl_list() {
+  let head;
+  let tail;
+  let size = 0;
+  const that = Object.create(null);
+
+  function dl_node(value) {
+    let previous;
+    let next;
+    const list = that;
+    const node = Object.create(null);
+
+    node.insert_after = function insert_after(val) {
+      new_node = dl_node(val);
+      new_node.previous = node;
+      if (node.next === undefined) {
+        that.tail = new_node;
+      } else {
+        new_node.next = node.next;
+        node.next.previous =
+    }
+
+  that.append = function append(value) {
+  }
+} */
+
 function random_element(array) {
   return array[Math.floor(Math.random() * array.length)];
 }
@@ -53,10 +91,18 @@ function set_difference(l, r) {
   return diff;
 }
 
+function map_path_validate_element(element) {
+  if (!Number.isFinite(element) && typeof element !== 'string') {
+    throw TypeError(
+      'Elements of `array_map` keys must be strings or finite numbers.');
+  }
+}
+
 function map_path_delete(map, array) {
   if (map === undefined || array.length === 0) {
     return false;
   }
+  map_path_validate_element(array[0]);
   if (array.length === 1) {
     return map.delete(array[0]);
   }
@@ -72,6 +118,7 @@ function map_path_get(map, array) {
   if (map === undefined || array.length === 0) {
     return undefined;
   }
+  map_path_validate_element(array[0]);
   if (array.length === 1) {
     return map.get(array[0]);
   }
@@ -81,8 +128,9 @@ function map_path_get(map, array) {
 
 function map_path_set(map, array, value) {
   if (map === undefined || array.length === 0) {
-    return false;
+    return map;
   }
+  map_path_validate_element(array[0]);
   if (array.length === 1) {
     return map.set(array[0], value);
   }
@@ -95,14 +143,15 @@ function map_path_set(map, array, value) {
 }
 
 function array_map() {
-  let size = 0;
   const tiers = new Map();
+  // reverse map, used for ordering:
+  const insertion_ordering = new Map();
   const that = Object.create(null);
   that.get_size = function get_size() {
-    return size;
+    return insertion_ordering.size;
   };
   that.clear = function clear() {
-    size = 0;
+    insertion_ordering.clear();
     tiers.clear();
   };
   that.remove = function remove(key) {
@@ -110,15 +159,17 @@ function array_map() {
       throw TypeError('{key} is not an Array.');
     }
 
-    const tier_map = tiers.get(key.length);
-    const result = map_path_delete(tier_map, key);
-    if (tier_map !== undefined && tier_map.size === 0) {
-      tiers.delete(key.length);
+    const value = that.get(key);
+    if (value !== undefined) {
+      insertion_ordering.delete(value);
+
+      const tier_map = tiers.get(key.length);
+      map_path_delete(tier_map, key);
+      if (tier_map !== undefined && tier_map.size === 0) {
+        tiers.delete(key.length);
+      }
     }
-    if (result) {
-      size = size - 1;
-    }
-    return result;
+    return value !== undefined;
   };
   that.get = function get(key) {
     if (!Array.isArray(key)) {
@@ -135,6 +186,13 @@ function array_map() {
     if (!Array.isArray(key)) {
       throw TypeError('{key} is not an Array.');
     }
+    const old_value = that.get(key);
+    if (old_value !== undefined) {
+      insertion_ordering.delete(old_value);
+    }
+    const wrapped_value = Object.create(null);
+    wrapped_value.value = value;
+    insertion_ordering.set(wrapped_value, key);
 
     let tier_map = tiers.get(key.length);
     if (tier_map === undefined) {
@@ -142,8 +200,12 @@ function array_map() {
       tiers.set(key.length, tier_map);
     }
     map_path_set(tier_map, key, value);
-    size = size + 1;
     return that;
+  };
+  that.to_array = function to_array() {
+    return Array.from(insertion_ordering.entries()).map(function (entry) {
+      return [entry[1], entry[0].value];
+    });
   };
   return that;
 }

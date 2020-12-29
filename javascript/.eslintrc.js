@@ -25,6 +25,9 @@ module.exports = {
     }],
     'object-shorthand': 'off',
     'prefer-arrow-callback': 'warn',
+    'prefer-destructuring': ['error', {
+      'array': false,
+    }],
     'indent': ['off', {
       'FunctionDeclaration': {
         'parameters': 'first'

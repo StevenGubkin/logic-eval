@@ -27,45 +27,69 @@
       <button type="submit" class="btn btn-success btn-sm"
         >Generate sample expression</button>
     </form>
-    <ul v-if="cases">
+    <ul v-if="cases.length &gt; 0">
       <li v-for="(one_case, index) in cases" :key="index">
         <!--div class="expression">{{ tree }}</div>
         <katex-element expression="expression_tree_as_tex(tree)"/-->
-        <div v-if="one_case.sample.bind_variables">
+        <div v-if="one_case.predicates_space !== undefined">
+          <PredicatesEditor :predicates_space="one_case.predicates_space"/>
+        </div>
+        <div v-if="one_case.sample.bind_variables !== undefined">
           <form>
             <input v-for="(var_name, var_ix) in one_case.sample.bind_variables"
                    :key="var_ix"
                    v-model="one_case.sample.binding[var_name]"
                    :placeholder="var_name" />
           </form>
-          <div>{{ one_case.sample.binding }}</div>
+          <!--div>{{ one_case.sample.binding }}</div-->
         </div>
         <div v-katex="as_tex(one_case.sample.tree)"
              @click="examine(index)" class="expression"></div>
-        <form>
+        <form @submit.prevent="check(index)">
           <label :for="'check-' + index">Is this true?</label>
           <input type="checkbox" v-model="one_case.proposal"
                  :id="'check-' + index" />
-          <button type="submit" class="btn btn-success btn-sm"
+          <button v-if="!one_case.show_answer"
+                  type="submit" class="btn btn-success btn-sm"
             >Check</button>
+          <span v-else-if="one_case.proposal === one_case.answer"
+            >Correct!</span>
+          <span v-else>Alas, it's actually
+          {{ one_case.answer === true ? 'true' : 'false' }}.</span>
         </form>
       </li>
     </ul>
+    <!--div>{{ cases }}</div-->
+    <!--div>
+      <ElementOfSet :set="set_test.set"
+                    :subset="set_test.subset"
+                    :element="set_test.element" />
+      <p>{{ set_test.set }}</p>
+      <p>{{ set_test.subset }}</p>
+      <p>{{ set_test.element }}</p>
+      <ElementOfSet :set="set_test.set"
+                    :subset="set_test.subset"
+                    :element="1" />
+    </div-->
   </div>
 </template>
 
 <script>
 // import axios from 'axios';
+import PredicatesEditor from './PredicatesEditor.vue';
+// import ElementOfSet from './ElementOfSet.vue';
 import {
     build_expression_sample, expression_tree_as_tex,
     simplify_expression_sample, update_predicate_truth,
+    evaluate_expression_tree,
   } from '../expressions';
 /* import VueKatex from 'vue-katex';
 import 'katex/dist/katex.min.css'; */
 
-function make_case(sample) {
+function make_case(sample, predicates_space) {
   return {
     sample,
+    predicates_space,
     proposal: true,
     show_answer: false,
     answer: undefined,
@@ -74,6 +98,10 @@ function make_case(sample) {
 
 export default {
   name: 'LogicalExpressions',
+  components: {
+    PredicatesEditor,
+    // ElementOfSet,
+  },
   data() {
     return {
       cases: [
@@ -86,6 +114,7 @@ export default {
           proposal: true,
           show_answer: false,
           answer: undefined,
+          predicates_space: undefined,
         },
       ],
       newSize: '',
@@ -98,6 +127,11 @@ export default {
       ],
       selected_operators: [],
       allowQuantifiers: false,
+      set_test: {
+        set: new Set([0, 1, 2, 3, 4]),
+        subset: new Set([0, 2, 4]),
+        element: 2,
+      },
     };
   },
   methods: {
@@ -108,7 +142,7 @@ export default {
       let predicates_space;
       if (this.allowQuantifiers) {
         predicates_space = {
-          universe: new Set([0, 1, 2]),
+          universe: new Set(['0', '1', '2']),
           predicates: { A: { args_nr: 2 } },
         };
         update_predicate_truth(predicates_space, 'A');
@@ -116,15 +150,26 @@ export default {
         update_predicate_truth(predicates_space, 'C');
         update_predicate_truth(predicates_space, 'D');
       }
-      this.cases = [
-        make_case(
-          build_expression_sample(this.newSize, this.selected_operators,
-                                  predicates_space)),
-      ];
-    },
-    examine(expression_index) {
+      this.cases.splice(0);
       this.cases.push(make_case(
-        simplify_expression_sample(this.expressions[expression_index][0])));
+        build_expression_sample(this.newSize, this.selected_operators,
+                                predicates_space),
+        predicates_space));
+    },
+    examine(case_index) {
+      const simplified = simplify_expression_sample(
+        this.cases[case_index].sample);
+      this.cases.push(make_case(
+        simplified,
+        this.cases[case_index].predicates_space));
+    },
+    check(case_index) {
+      const c = this.cases[case_index];
+      c.answer = evaluate_expression_tree(c.sample.tree,
+        c.predicates_space !== undefined
+        ? Array.from(c.predicates_space.universe)
+        : undefined);
+      c.show_answer = true;
     },
     as_tex: expression_tree_as_tex,
   },
@@ -144,6 +189,7 @@ ul {
 li {
   /*display: inline-block;*/
   margin: 0 10px;
+  clear: right;
 }
 a {
   color: #42b983;
