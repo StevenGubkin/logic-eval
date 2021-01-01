@@ -471,22 +471,21 @@ function simplify_expression_sample(sample) {
       new_node.contents = node.contents.type.init_node_contents({
         original: node.contents,
       });
-      new_node.contents.type = node.contents.type;
     } else {
-      new_node.contents = {
-        type: node.contents.type,
-      };
+      new_node.contents = Object.create(null);
     }
+    new_node.contents.type = { ...node.contents.type };
     // If the sample includes a `bind_variables` object (which is an array of
-    // quantified variables present in the tree), then we copy the tree, adding
-    // information to predicate nodes and updating information for quantifier
-    // nodes.
+    // quantified variables present in the tree), then we copy the tree,
+    // updating information for predicate and quantifier nodes.
     if (sample.bind_variables !== undefined) {
       if (is_leaf_object(node)) {
         if (node.contents.variables !== undefined) {
           const value = node.contents.variables.map(function (variable) {
             return sample.binding[variable];
           });
+          new_node.contents.type.true_for = new_node.contents
+            .type.true_for.clone();
           new_node.contents.value = value;
         }
       } else {

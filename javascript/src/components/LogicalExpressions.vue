@@ -32,7 +32,8 @@
         <!--div class="expression">{{ tree }}</div>
         <katex-element expression="expression_tree_as_tex(tree)"/-->
         <div v-if="one_case.predicates_space !== undefined">
-          <PredicatesEditor :predicates_space="one_case.predicates_space"/>
+          <PredicatesEditor :predicates_space="one_case.predicates_space"
+            :disabled="one_case.sample.bind_variables === undefined"/>
         </div>
         <div v-if="one_case.sample.bind_variables !== undefined">
           <form>
@@ -76,6 +77,7 @@
 
 <script>
 // import axios from 'axios';
+import { cloneDeepWith } from 'lodash';
 import PredicatesEditor from './PredicatesEditor.vue';
 // import ElementOfSet from './ElementOfSet.vue';
 import {
@@ -109,7 +111,8 @@ export default {
           sample: {
             bind_variables: ['x', 'y', 'z'],
             binding: { },
-            tree: { contents: { type: { tex: 'T' } } },
+            tree: { contents: { type: { tex: 'T',
+                                        eval() { return true; } } } },
           },
           proposal: true,
           show_answer: false,
@@ -159,9 +162,16 @@ export default {
     examine(case_index) {
       const simplified = simplify_expression_sample(
         this.cases[case_index].sample);
-      this.cases.push(make_case(
-        simplified,
-        this.cases[case_index].predicates_space));
+      const predicates_space_clone = cloneDeepWith(
+        this.cases[case_index].predicates_space,
+        function customizer(value) {
+          if (value !== undefined && value.clone !== undefined) {
+            return value.clone();
+          }
+          return undefined;
+        });
+      this.cases.splice(case_index + 1, 0,
+                        make_case(simplified, predicates_space_clone));
     },
     check(case_index) {
       const c = this.cases[case_index];

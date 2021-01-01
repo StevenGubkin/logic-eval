@@ -1,5 +1,8 @@
 <template>
-  <div v-if="predicates_space.universe.size &gt; 0" id="panel">
+  <div v-if="predicates_space.universe.size &gt; 0" id="panel"
+      :title="(disabled === true
+               ? 'The predicate values are fixed for this simplified sample.'
+               : '')">
     <table>
       <thead>
         <tr>
@@ -22,7 +25,9 @@
           <th>{{ entry[0] }}<!-- ({{ entry[1].true_for }})--></th>
           <td v-for="(element, el_index) in predicates_space.universe"
               :key="el_index">
-            <ElementOfSet :set="entry[1].true_for" :element="[element]"/>
+            <ElementOfSet :set="entry[1].true_for" :element="[element]"
+                          :disabled="disabled"/>
+            <p v-if="false">{{ entry[1].true_for.has([element]) }}</p>
           </td>
         </tr>
       </tbody>
@@ -49,7 +54,14 @@ import ElementOfSet from './ElementOfSet.vue';
 
 export default {
   name: 'PredicatesEditor',
-  props: ['predicates_space'],
+  props: {
+    predicates_space: {
+      required: true,
+    },
+    disabled: {
+      default: false,
+    },
+  },
   components: {
     ElementOfSet,
   },

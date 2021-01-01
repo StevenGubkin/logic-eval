@@ -33,5 +33,6 @@ module.exports = {
         'parameters': 'first'
       }
     }],
+    'wrap-iife': 'warn',
   },
 };

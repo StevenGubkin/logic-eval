@@ -154,12 +154,24 @@ function array_map() {
     insertion_ordering.clear();
     tiers.clear();
   };
+  function get_wrapped(key) {
+    if (!Array.isArray(key)) {
+      throw TypeError('{key} is not an Array.');
+    }
+
+    const tier_map = tiers.get(key.length);
+    return map_path_get(tier_map, key);
+  }
+  that.get = function get(key) {
+    const result = get_wrapped(key);
+    return result !== undefined ? result.value : undefined;
+  };
   that.remove = function remove(key) {
     if (!Array.isArray(key)) {
       throw TypeError('{key} is not an Array.');
     }
 
-    const value = that.get(key);
+    const value = get_wrapped(key);
     if (value !== undefined) {
       insertion_ordering.delete(value);
 
@@ -170,14 +182,6 @@ function array_map() {
       }
     }
     return value !== undefined;
-  };
-  that.get = function get(key) {
-    if (!Array.isArray(key)) {
-      throw TypeError('{key} is not an Array.');
-    }
-
-    const tier_map = tiers.get(key.length);
-    return map_path_get(tier_map, key);
   };
   that.has = function has(key) {
     return that.get(key) !== undefined;
@@ -199,7 +203,7 @@ function array_map() {
       tier_map = new Map();
       tiers.set(key.length, tier_map);
     }
-    map_path_set(tier_map, key, value);
+    map_path_set(tier_map, key, wrapped_value);
     return that;
   };
   that.to_array = function to_array() {
@@ -207,6 +211,23 @@ function array_map() {
       return [entry[1], entry[0].value];
     });
   };
+  that.from_array = function from_array(array) {
+    let index = 0;
+    return function set_next() {
+      if (index === array.length) {
+        return that;
+      }
+      that.set(array[index][0], array[index][1]);
+      index = index + 1;
+      return set_next();
+    }();
+  };
+  that.clone = function clone() {
+    const as_array = that.to_array();
+    const am = array_map();
+    return am.from_array(as_array);
+  };
+
   return that;
 }
 

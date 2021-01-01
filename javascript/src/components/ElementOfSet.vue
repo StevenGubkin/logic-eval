@@ -1,11 +1,25 @@
 <template>
-  <input v-model="membership" id="membership" type="checkbox" />
+  <input v-model="membership" id="membership" type="checkbox"
+         v-if="disabled !== true"/>
+  <span v-else-if="membership === true">&#x2611;</span>
+  <span v-else>&#x2610;</span>
 </template>
 
 <script>
 export default {
   name: 'ElementOfSet',
-  props: ['set', 'element'],
+  props: {
+    set: {
+      type: Object,
+      required: true,
+    },
+    element: {
+      required: true,
+    },
+    disabled: {
+      default: false,
+    },
+  },
   computed: {
     membership: {
       get() {
@@ -13,9 +27,9 @@ export default {
       },
       set(value) {
         if (value === true) {
-          this.set.add(this.element, true);
+          this.set.set(this.element, true);
         } else {
-          this.set.delete(this.element);
+          this.set.remove(this.element);
         }
       },
     },
