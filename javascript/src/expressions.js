@@ -130,7 +130,9 @@ function expression_tree_as_tex(root) {
 function evaluate_expression_tree(node, universe, binding = {}) {
   const contents = Object.create(null);
   if (is_leaf_object(node)) {
-    if (node.contents.variables !== undefined) {
+    if (node.contents.value !== undefined) {
+      contents.value = node.contents.value;
+    } else if (node.contents.variables !== undefined) {
       const value = node.contents.variables.map(function (variable) {
         return binding[variable];
       });
