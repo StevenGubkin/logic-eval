@@ -235,18 +235,19 @@ const quantifier_node_types = {
       }
       return undefined;
     },
-    eval_unquantified(node, universe, binding = {}) {
-      if (universe.length === 0) {
+    eval_unquantified(node, universe, binding = {}, index = 0) {
+      if (index >= universe.length) {
         return true;
       }
       binding = { ...binding };
-      binding[node.contents.variable] = universe[0];
+      binding[node.contents.variable] = universe[index];
       const subtree_value = evaluate_expression_tree(node.children[0],
                                                      universe, binding);
       if (subtree_value === false) {
         return false;
       }
-      return this.eval_unquantified(node, universe.slice(1), binding);
+      index = index + 1;
+      return this.eval_unquantified(node, universe, binding, index);
     },
   },
   existential_quantifier: {
@@ -261,18 +262,19 @@ const quantifier_node_types = {
       }
       return undefined;
     },
-    eval_unquantified(node, universe, binding = {}) {
-      if (universe.length === 0) {
+    eval_unquantified(node, universe, binding = {}, index = 0) {
+      if (index >= universe.length) {
         return false;
       }
       binding = { ...binding };
-      binding[node.contents.variable] = universe[0];
+      binding[node.contents.variable] = universe[index];
       const subtree_value = evaluate_expression_tree(node.children[0],
                                                      universe, binding);
       if (subtree_value === true) {
         return true;
       }
-      return this.eval_unquantified(node, universe.slice(1), binding);
+      index = index + 1;
+      return this.eval_unquantified(node, universe, binding, index);
     },
   },
 };
@@ -459,9 +461,11 @@ function build_expression_sample(tree_size, operators = undefined,
   }
 
   const tree = build_expression_tree(tree_size);
+  const bind_variables = quantified_variables.length > 0
+                         ? quantified_variables : undefined;
   return {
     tree,
-    bind_variables: quantified_variables,
+    bind_variables,
     binding: { },
   };
 }

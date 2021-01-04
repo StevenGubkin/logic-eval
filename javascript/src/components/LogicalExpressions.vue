@@ -36,14 +36,17 @@
             :disabled="one_case.sample.bind_variables === undefined"/>
         </div>
         <div v-if="one_case.sample.bind_variables !== undefined">
-          <form>
+          <form @change="quiet(index)">
             <input v-for="(var_name, var_ix) in one_case.sample.bind_variables"
                    :key="var_ix"
+                   :id="'varinput' + index + '_' + var_ix"
                    v-model="one_case.sample.binding[var_name]"
                    :placeholder="var_name" />
           </form>
           <!--div>{{ one_case.sample.binding }}</div-->
         </div>
+        <p v-if="one_case.request_input === true"
+          >Please provide values for all of the variables.</p>
         <div v-katex="as_tex(one_case.sample.tree)"
              @click="examine(index)" class="expression"></div>
         <form @submit.prevent="check(index)">
@@ -91,6 +94,7 @@ import 'katex/dist/katex.min.css'; */
 function make_case(sample, predicates_space) {
   return {
     sample,
+    request_input: false,
     predicates_space,
     proposal: true,
     show_answer: false,
@@ -114,6 +118,7 @@ export default {
             tree: { contents: { type: { tex: 'T',
                                         eval() { return true; } } } },
           },
+          request_input: false,
           proposal: true,
           show_answer: false,
           answer: undefined,
@@ -160,10 +165,16 @@ export default {
         predicates_space));
     },
     examine(case_index) {
-      const simplified = simplify_expression_sample(
-        this.cases[case_index].sample);
-      const predicates_space_clone = cloneDeepWith(
-        this.cases[case_index].predicates_space,
+      console.log('examining');
+      const c = this.cases[case_index];
+      if (c.sample.bind_variables !== undefined
+          && Object.keys(c.sample.binding).length
+             !== c.sample.bind_variables.length) {
+        c.request_input = true;
+        return;
+      }
+      const simplified = simplify_expression_sample(c.sample);
+      const predicates_space_clone = cloneDeepWith(c.predicates_space,
         function customizer(value) {
           if (value !== undefined && value.clone !== undefined) {
             return value.clone();
@@ -180,6 +191,9 @@ export default {
         ? Array.from(c.predicates_space.universe)
         : undefined);
       c.show_answer = true;
+    },
+    quiet(case_index) {
+      this.cases[case_index].request_input = false;
     },
     as_tex: expression_tree_as_tex,
   },
