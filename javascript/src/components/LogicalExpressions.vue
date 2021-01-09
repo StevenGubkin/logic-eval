@@ -3,7 +3,6 @@
     <!--div>
       <katex-element expression="'\\frac{a_i}{1+x}'"/>
     </div-->
-    <div v-katex="'\\frac{a_i}{1+x}'"></div>
     <form @submit.prevent="generate">
       <div>
         <input v-model.number="newSize"
