@@ -22,11 +22,12 @@
       <tbody v-if="one_dimensional_predicate_entries.length &gt; 0">
         <tr v-for="(entry, index) in one_dimensional_predicate_entries"
             :key="index">
-          <th>{{ entry[0] }}<!-- ({{ entry[1].true_for }})--></th>
+          <th>{{ entry[0] }}<!--({{ entry[1].true_for.to_array() }})--></th>
           <td v-for="(element, el_index) in predicates_space.universe"
               :key="el_index">
-            <ElementOfSet :set="entry[1].true_for" :element="[element]"
-                          :disabled="disabled"/>
+            <ElementOfSet :array_set="entry[1].true_for" :element="[element]"
+                          @update:array_set="update_truth(entry[0], $event)"
+                          :disabled="disabled" :key="entry[1].true_for"/>
             <p v-if="false">{{ entry[1].true_for.has([element]) }}</p>
           </td>
         </tr>
@@ -62,6 +63,7 @@ export default {
       default: false,
     },
   },
+  emits: ['update:predicates_space'],
   components: {
     ElementOfSet,
   },
@@ -79,16 +81,20 @@ export default {
         });
     },
   },
+  methods: {
+    update_truth(predicate_name, event) {
+      const predicates = { ...this.predicates_space.predicates };
+      predicates[predicate_name].true_for = event;
+      const predicates_space = {
+        ...this.predicates_space,
+        predicates,
+      };
+
+      this.$emit('update:predicates_space', predicates_space);
+    },
+  },
 };
 </script>
 
 <style>
-div#panel {
-  margin: 0.25em;
-  border: 2px solid blue;
-  background-color: #edf;
-  width: 40%;
-  float: right;
-  clear: right;
-}
 </style>

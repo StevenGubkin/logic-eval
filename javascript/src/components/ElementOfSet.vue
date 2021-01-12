@@ -1,15 +1,13 @@
 <template>
-  <input v-model="membership" id="membership" type="checkbox"
-         v-if="disabled !== true"/>
-  <span v-else-if="membership === true">&#x2611;</span>
-  <span v-else>&#x2610;</span>
+  <button @click="membership = !membership" :disabled="disabled"
+    >{{ membership === true ? 'T' : 'F' }}</button>
 </template>
 
 <script>
 export default {
   name: 'ElementOfSet',
   props: {
-    set: {
+    array_set: {
       type: Object,
       required: true,
     },
@@ -20,23 +18,28 @@ export default {
       default: false,
     },
   },
+  emits: ['update:array_set'],
+  data() {
+    return {
+      localset: this.array_set.clone(),
+    };
+  },
   computed: {
     membership: {
       get() {
-        return this.set.has(this.element);
+        return this.localset.has(this.element);
       },
       set(value) {
         if (value === true) {
-          this.set.set(this.element, true);
+          this.localset.set(this.element, true);
         } else {
-          this.set.remove(this.element);
+          this.localset.remove(this.element);
         }
+        // Allow Vue's reactivity to see the updated set:
+        this.localset = this.localset.clone();
+        this.$emit('update:array_set', this.localset);
       },
     },
-  },
-  data() {
-    return {
-    };
   },
 };
 </script>
